@@ -19,7 +19,7 @@ select rolname, uid, successful_attempts, total_hba_conflicts, other_auth_failur
 
 --3.Login attempt by username who is not allowed to login is not authentication failure
 \! PGPASSWORD=postgres psql -X -U auth_nologin -d testdb -c "select 1" 2>&1 | sed 's/^.* FATAL: */FATAL: /'
-select rolname, successful_attempts, total_hba_conflicts, other_auth_failures from pg_auth_mon where rolname like 'auth_%';
+select rolname, successful_attempts, total_hba_conflicts, other_auth_failures from pg_auth_mon where rolname like 'auth_%' order by rolname;
 
 --4.Login attempt by a valid user with a wrong password 
 \! PGPASSWORD=postgres psql -X -U auth_test -d testdb -c "select 1" 2>&1 | sed 's/^.* FATAL: */FATAL: /'
