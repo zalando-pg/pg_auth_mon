@@ -40,7 +40,6 @@ PG_FUNCTION_INFO_V1(pg_auth_mon_1_1);
 PG_MODULE_MAGIC;
 
 extern void _PG_init(void);
-extern void _PG_fini(void);
 
 /* GUC variables */
 static int log_period_guc = 0;
@@ -86,6 +85,9 @@ LWLock	   *auth_mon_lock;
 static ClientAuthentication_hook_type original_client_auth_hook = NULL;
 
 /* Saved hook values in case of unload */
+#if PG_VERSION_NUM >= 150000
+static shmem_request_hook_type prev_shmem_request_hook = NULL;
+#endif
 static shmem_startup_hook_type prev_shmem_startup_hook = NULL;
 
 /* Hash table in the shared memory */
@@ -94,6 +96,9 @@ static HTAB *auth_mon_ht;
 /* timestamp in shared memory used to limit the frequency of logging pg_auth_mon data */
 static TimestampTz *last_log_timestamp;
 
+#if PG_VERSION_NUM >= 150000
+static void fai_shmem_request(void);
+#endif
 static void fai_shmem_startup(void);
 static Size fai_memsize(void);
 static void fai_shmem_shutdown(int code, Datum arg);
@@ -108,6 +113,7 @@ static Datum pg_auth_mon_internal(PG_FUNCTION_ARGS, pgauthmonVersion api_version
 void
 _PG_init(void)
 {
+#if PG_VERSION_NUM < 150000
 	/*
 	 * Request additional shared resources.  (These are no-ops if we're not in
 	 * the postmaster process.)  We'll allocate or attach to the shared
@@ -119,8 +125,12 @@ _PG_init(void)
 #else
 	RequestNamedLWLockTranche("auth_mon_lock", 1);
 #endif
-
+#else
 	/* Install Hooks */
+	prev_shmem_request_hook = shmem_request_hook;
+	shmem_request_hook = fai_shmem_request;
+#endif
+
 	prev_shmem_startup_hook = shmem_startup_hook;
 	shmem_startup_hook = fai_shmem_startup;
 
@@ -141,17 +151,22 @@ _PG_init(void)
 						NULL);
 }
 
+#if PG_VERSION_NUM >= 150000
 /*
- * Module unload callback
+ * shmem_request hook: request additional shared resources.  We'll allocate or
+ * attach to the shared resources in fai_shmem_startup().
  */
-void
-_PG_fini(void)
+static void
+fai_shmem_request(void)
 {
-	/* Uninstall hooks. */
-	shmem_startup_hook = prev_shmem_startup_hook;
-	ClientAuthentication_hook = original_client_auth_hook;
-
+	RequestAddinShmemSpace(fai_memsize());
+#if PG_VERSION_NUM < 90600
+	RequestAddinLWLocks(1);
+#else
+	RequestNamedLWLockTranche("auth_mon_lock", 1);
+#endif
 }
+#endif
 
 /*
  * shmem_startup hook: allocate and attach to shared memory,
