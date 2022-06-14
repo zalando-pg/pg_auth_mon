@@ -159,12 +159,11 @@ _PG_init(void)
 static void
 fai_shmem_request(void)
 {
+	if (prev_shmem_request_hook)
+		prev_shmem_request_hook();
+
 	RequestAddinShmemSpace(fai_memsize());
-#if PG_VERSION_NUM < 90600
-	RequestAddinLWLocks(1);
-#else
 	RequestNamedLWLockTranche("auth_mon_lock", 1);
-#endif
 }
 #endif
 
