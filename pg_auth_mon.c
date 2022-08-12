@@ -43,6 +43,7 @@ extern void _PG_init(void);
 
 /* GUC variables */
 static int log_period_guc = 0;
+static bool log_successful_authentications_guc = false;
 
 /* Number of output arguments (columns) for various API versions */
 #define PG_AUTH_MON_COLS_V1_0  6
@@ -146,6 +147,17 @@ _PG_init(void)
 						10080, // one week
 						PGC_SIGHUP,
 						GUC_UNIT_MIN,
+						NULL,
+						NULL,
+						NULL);
+
+	DefineCustomBoolVariable("pg_auth_mon.log_successful_authentications",
+						"Log successful_authentications (on/off)",
+						NULL,
+						&log_successful_authentications_guc,
+						false,
+						PGC_SIGHUP,
+						0,
 						NULL,
 						NULL,
 						NULL);
@@ -275,6 +287,37 @@ auth_monitor(Port *port, int status)
 	/* Nothing to do */
 	if (status == STATUS_EOF)
 		return;
+
+	/* Follow the logic in postgres/src/backend/utils/init/postinit.c:252-275 */
+	if (log_successful_authentications_guc && status == STATUS_OK) {
+		StringInfoData logmsg;
+		initStringInfo(&logmsg);
+
+		appendStringInfo(&logmsg, _("connection authorized: %s:%s user=%s database=%s"),
+							 port->remote_host, port->remote_port, port->user_name, port->database_name);
+
+		if (port->application_name != NULL)
+			appendStringInfo(&logmsg, _(" application_name=%s"),
+							 port->application_name);
+
+		appendStringInfo(&logmsg, _(" (%s:%d)"), HbaFileName, port->hba->linenumber);
+
+		if (port->ssl_in_use)
+			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, bits=%d)"),
+							 be_tls_get_version(port),
+							 be_tls_get_cipher(port),
+							 be_tls_get_cipher_bits(port));
+
+		#if PG_VERSION_NUM >= 140000
+			appendStringInfo(&logmsg, _(" identity=%s"), port->authn_id);
+			appendStringInfo(&logmsg, _(" method=%s"), hba_authname(port->hba->auth_method));
+		#endif
+
+		ereport(LOG, errmsg("%s", logmsg.data));
+
+		pfree(logmsg.data);
+		return;
+	}
 
 	key = get_role_oid((const char *) (port->user_name), true);
 	/*
