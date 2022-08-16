@@ -302,11 +302,13 @@ auth_monitor(Port *port, int status)
 
 		appendStringInfo(&logmsg, _(" (%s:%d)"), HbaFileName, port->hba->linenumber);
 
+#ifdef USE_SSL
 		if (port->ssl_in_use)
 			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, bits=%d)"),
 							 be_tls_get_version(port),
 							 be_tls_get_cipher(port),
 							 be_tls_get_cipher_bits(port));
+#endif
 
 		#if PG_VERSION_NUM >= 140000
 			appendStringInfo(&logmsg, _(" identity=%s"), port->authn_id);
