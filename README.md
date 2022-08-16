@@ -22,7 +22,7 @@ particular IP address etc.
 1. `pg_auth_mon.log_period = 60` : dump `pg_auth_mon` content to Postgres log every 60 minutes. Default: 0, meaning the feature is off.
 
 2. `pg_auth_mon.log_successful_authentications = off` : log information about completely established connections.
-The motivation behind this setting is to reduce log volume for routine connection attempts by emitting one message per successful connection instead of multiple ones the standard PG setting `log_connections` produces even for non-initialized connections. So enabling this setting only makes sense if you set `log_connections` to false. It is up to you to decide if the resultant log line contains enough information to satisfy your auditing requirements. Keep in mind connections that do not complete authentication will not be logged (e.g. health checks from load balancers). Authentication failures are always logged by Postgres. Logging of disconnections is unaffected by this setting (use standard `log_disconnections` setting). Example log line on vanilla PG 14: 
+The motivation behind this setting is to reduce log volume for routine connection attempts by emitting one message per successful connection instead of multiple ones the standard PG setting `log_connections` produces even for non-initialized connections. So enabling this setting only makes sense if you set `log_connections` to false. It is up to you to decide if the resultant log line contains enough information to satisfy your auditing requirements. Keep in mind connections that do not complete authentication will not be logged (e.g. health checks from load balancers). Authentication failures are always logged by Postgres. Logging of disconnections is unaffected by this setting (use standard `log_disconnections` setting). Log line format varies depending on the PG version and connection method used; Example log line on vanilla PG 14: 
 ```
 2022-08-15 12:00:37.398 CEST [636077] postgres@template1 LOG:  connection authorized: [local]: user=postgres  database=template1 application_name=psql (/etc/postgresql/14/main/pg_hba.conf:90) identity=postgres method=peer
 ```
@@ -40,14 +40,7 @@ that affects expected test results. Have a look into `test.sh` for Postgres test
 
 Depending on one's installation, one may or may not need `sudo` in the above script.
 
-### Adding dependencies on Ubuntu
 
-```bash
-# add the PostgreSQL Apt Repository https://www.postgresql.org/download/linux/ubuntu/
-sudo add-apt-repository universe # clang / llvm
-sudo apt install libkrb5-dev # gssapi
-sudo apt install postgresql-server-dev-14
-```
 
 
 ## How to run it:
@@ -57,6 +50,8 @@ sudo apt install postgresql-server-dev-14
 3. ```sql
    create extension pg_auth_mon;
    select * from pg_auth_mon;```
+
+To test against a specific PG version, do `export PATH=/path/to/postgres/bin:$PATH`
 
 ## How to use:
 

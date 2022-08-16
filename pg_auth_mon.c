@@ -288,34 +288,47 @@ auth_monitor(Port *port, int status)
 	if (status == STATUS_EOF)
 		return;
 
-	/* Follow the logic in postgres/src/backend/utils/init/postinit.c:252-275 */
+	/* Follow the logic of PerformAuthentication(...) in postgres/src/backend/utils/init/postinit.c */
 	if (log_successful_authentications_guc && status == STATUS_OK) {
 		StringInfoData logmsg;
 		initStringInfo(&logmsg);
 
 		appendStringInfo(&logmsg, _("connection authorized: %s:%s user=%s database=%s"),
 							 port->remote_host, port->remote_port, port->user_name, port->database_name);
-
+#if PG_VERSION_NUM >= 120000
 		if (port->application_name != NULL)
 			appendStringInfo(&logmsg, _(" application_name=%s"),
 							 port->application_name);
 
 		appendStringInfo(&logmsg, _(" (%s:%d)"), HbaFileName, port->hba->linenumber);
+#endif
 
 #ifdef USE_SSL
+#if PG_VERSION_NUM >= 110000
 		if (port->ssl_in_use)
 			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, bits=%d)"),
 							 be_tls_get_version(port),
 							 be_tls_get_cipher(port),
 							 be_tls_get_cipher_bits(port));
+#else
+		if (port->ssl_in_use)
+			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, compression=%s)"),
+							 SSL_get_version(port->ssl),
+							 SSL_get_cipher(port->ssl),
+							 SSL_get_current_compression(port->ssl) ? _("on") : _("off"));
+#endif
 #endif
 
-		#if PG_VERSION_NUM >= 140000
+#if PG_VERSION_NUM >= 140000
 			appendStringInfo(&logmsg, _(" identity=%s"), port->authn_id);
 			appendStringInfo(&logmsg, _(" method=%s"), hba_authname(port->hba->auth_method));
-		#endif
+#endif
 
+#if PG_VERSION_NUM >= 130000
 		ereport(LOG, errmsg("%s", logmsg.data));
+#else
+		ereport(LOG, (errmsg("%s", logmsg.data)));
+#endif
 
 		pfree(logmsg.data);
 		return;
