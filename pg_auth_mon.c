@@ -152,7 +152,7 @@ _PG_init(void)
 						NULL);
 
 	DefineCustomBoolVariable("pg_auth_mon.log_successful_authentications",
-						"Log successful_authentications (on/off)",
+						"Log successful authentications (on/off)",
 						NULL,
 						&log_successful_authentications_guc,
 						false,
