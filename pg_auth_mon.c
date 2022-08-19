@@ -328,15 +328,15 @@ auth_monitor(Port *port, int status)
 #ifdef USE_SSL
 		if (port->ssl_in_use)
 #if PG_VERSION_NUM >= 110000
-			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, bits=%d)"),
-							 be_tls_get_version(port),
-							 be_tls_get_cipher(port),
-							 be_tls_get_cipher_bits(port));
+		appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, bits=%d)"),
+							be_tls_get_version(port),
+							be_tls_get_cipher(port),
+							be_tls_get_cipher_bits(port));
 #else
-			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, compression=%s)"),
-							 SSL_get_version(port->ssl),
-							 SSL_get_cipher(port->ssl),
-							 SSL_get_current_compression(port->ssl) ? _("on") : _("off"));
+		appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, compression=%s)"),
+							SSL_get_version(port->ssl),
+							SSL_get_cipher(port->ssl),
+							SSL_get_current_compression(port->ssl) ? _("on") : _("off"));
 #endif
 #endif
 
@@ -351,14 +351,7 @@ auth_monitor(Port *port, int status)
 			appendStringInfo(&logmsg, _(" method=%s"), local_hba_authname(port->hba->auth_method));
 #endif
 
-/* Before Postgres v12, list of auxiliary function calls required extra parentheses.
- * See Postgres commit e3a87b4991cc2
- */
-#if PG_VERSION_NUM >= 120000
-		ereport(LOG, errmsg("%s", logmsg.data));
-#else
-		ereport(LOG, (errmsg("%s", logmsg.data)));
-#endif
+ 		ereport(LOG, (errmsg("%s", logmsg.data)));
 
 		pfree(logmsg.data);
 		return;
