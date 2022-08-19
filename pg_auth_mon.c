@@ -42,8 +42,29 @@ PG_MODULE_MAGIC;
 extern void _PG_init(void);
 
 /* GUC variables */
-static int log_period_guc = 0;
+static int  log_period_guc = 0;
 static bool log_successful_authentications_guc = false;
+
+/* verbatim copy of UserAuthName (src/backend/libpq/hba.c) required by local_hba_authname */
+static const char *const LocalUserAuthName[] =
+{
+	"reject",
+	"implicit reject",			/* Not a user-visible option */
+	"trust",
+	"ident",
+	"password",
+	"md5",
+	"scram-sha-256",
+	"gss",
+	"sspi",
+	"pam",
+	"bsd",
+	"ldap",
+	"cert",
+	"radius",
+	"peer"
+};
+
 
 /* Number of output arguments (columns) for various API versions */
 #define PG_AUTH_MON_COLS_V1_0  6
@@ -106,6 +127,7 @@ static void fai_shmem_shutdown(int code, Datum arg);
 static void auth_monitor(Port *port, int status);
 static void log_pg_auth_mon_data(void);
 static Datum pg_auth_mon_internal(PG_FUNCTION_ARGS, pgauthmonVersion api_version);
+const char * local_hba_authname(UserAuth auth_method);
 
 
 /*
@@ -304,14 +326,13 @@ auth_monitor(Port *port, int status)
 #endif
 
 #ifdef USE_SSL
-#if PG_VERSION_NUM >= 110000
 		if (port->ssl_in_use)
+#if PG_VERSION_NUM >= 110000
 			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, bits=%d)"),
 							 be_tls_get_version(port),
 							 be_tls_get_cipher(port),
 							 be_tls_get_cipher_bits(port));
 #else
-		if (port->ssl_in_use)
 			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, compression=%s)"),
 							 SSL_get_version(port->ssl),
 							 SSL_get_cipher(port->ssl),
@@ -321,10 +342,19 @@ auth_monitor(Port *port, int status)
 
 #if PG_VERSION_NUM >= 140000
 			appendStringInfo(&logmsg, _(" identity=%s"), port->authn_id);
-			appendStringInfo(&logmsg, _(" method=%s"), hba_authname(port->hba->auth_method));
 #endif
 
-#if PG_VERSION_NUM >= 130000
+#if PG_VERSION_NUM >= 140000
+			/* prefer the native hba_authname to account for future changes in PG source */
+			appendStringInfo(&logmsg, _(" method=%s"), hba_authname(port->hba->auth_method));
+#else
+			appendStringInfo(&logmsg, _(" method=%s"), local_hba_authname(port->hba->auth_method));
+#endif
+
+/* Before Postgres v12, list of auxiliary function calls required extra parentheses.
+ * See Postgres commit e3a87b4991cc2
+ */
+#if PG_VERSION_NUM >= 120000
 		ereport(LOG, errmsg("%s", logmsg.data));
 #else
 		ereport(LOG, (errmsg("%s", logmsg.data)));
@@ -582,4 +612,20 @@ pg_auth_mon_internal(PG_FUNCTION_ARGS, pgauthmonVersion api_version)
 	rsinfo->setDesc = tupdesc;
 
 	return (Datum) 0;
+}
+
+/* To log the authentication method in PG versions < 14, we have to re-implement 
+ * hba_authname because the relevant commit 9afffcb833d3c5e5 was not backported.
+ *
+ * Note c1968426ba3de1fe37 refactored hba_authname.
+ */
+const char * 
+local_hba_authname(UserAuth auth_method)
+{
+	/*
+	 * Fail if the UserAuth enum in hba.h changed. 
+	 */
+	StaticAssertStmt(lengthof(LocalUserAuthName) == USER_AUTH_LAST + 1,
+					 "LocalUserAuthName[] does not match the UserAuth enum; the Postgres source likely changed.");
+	return LocalUserAuthName[auth_method];
 }

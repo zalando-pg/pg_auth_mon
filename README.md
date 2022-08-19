@@ -40,9 +40,6 @@ that affects expected test results. Have a look into `test.sh` for Postgres test
 
 Depending on one's installation, one may or may not need `sudo` in the above script.
 
-
-
-
 ## How to run it:
 
 1. Add `shared_preload_libraries = 'pg_auth_mon'` to your `postgresql.conf`
