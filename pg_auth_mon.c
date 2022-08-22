@@ -45,6 +45,7 @@ extern void _PG_init(void);
 static int  log_period_guc = 0;
 static bool log_successful_authentications_guc = false;
 
+#if PG_VERSION_NUM < 140000
 /* verbatim copy of UserAuthName (src/backend/libpq/hba.c) required by local_hba_authname */
 static const char *const LocalUserAuthName[] =
 {
@@ -64,7 +65,7 @@ static const char *const LocalUserAuthName[] =
 	"radius",
 	"peer"
 };
-
+#endif
 
 /* Number of output arguments (columns) for various API versions */
 #define PG_AUTH_MON_COLS_V1_0  6
@@ -127,7 +128,9 @@ static void fai_shmem_shutdown(int code, Datum arg);
 static void auth_monitor(Port *port, int status);
 static void log_pg_auth_mon_data(void);
 static Datum pg_auth_mon_internal(PG_FUNCTION_ARGS, pgauthmonVersion api_version);
-const char * local_hba_authname(UserAuth auth_method);
+#if PG_VERSION_NUM < 140000
+const char * hba_authname(UserAuth auth_method);
+#endif
 
 
 /*
@@ -344,12 +347,7 @@ auth_monitor(Port *port, int status)
 			appendStringInfo(&logmsg, _(" identity=%s"), port->authn_id);
 #endif
 
-#if PG_VERSION_NUM >= 140000
-			/* prefer the native hba_authname to account for future changes in PG source */
-			appendStringInfo(&logmsg, _(" method=%s"), hba_authname(port->hba->auth_method));
-#else
-			appendStringInfo(&logmsg, _(" method=%s"), local_hba_authname(port->hba->auth_method));
-#endif
+		appendStringInfo(&logmsg, _(" method=%s"), hba_authname(port->hba->auth_method));
 
  		ereport(LOG, (errmsg("%s", logmsg.data)));
 
@@ -421,7 +419,7 @@ auth_monitor(Port *port, int status)
 	}
 
 	waittime_msec = 1000 * 60 * log_period_guc;
-	if (waittime_msec > 0 && (TimestampDifferenceExceeds(*last_log_timestamp, now, waittime_msec))) 
+	if (waittime_msec > 0 && (TimestampDifferenceExceeds(*last_log_timestamp, now, waittime_msec)))
 	{
 		*last_log_timestamp = now;
 		LWLockRelease(auth_mon_lock);
@@ -607,18 +605,20 @@ pg_auth_mon_internal(PG_FUNCTION_ARGS, pgauthmonVersion api_version)
 	return (Datum) 0;
 }
 
-/* To log the authentication method in PG versions < 14, we have to re-implement 
+/* To log the authentication method in PG versions < 14, we have to re-implement
  * hba_authname because the relevant commit 9afffcb833d3c5e5 was not backported.
  *
  * Note c1968426ba3de1fe37 refactored hba_authname.
  */
-const char * 
-local_hba_authname(UserAuth auth_method)
+#if PG_VERSION_NUM < 140000
+const char *
+hba_authname(UserAuth auth_method)
 {
 	/*
-	 * Fail if the UserAuth enum in hba.h changed. 
+	 * Fail if the UserAuth enum in hba.h changed.
 	 */
 	StaticAssertStmt(lengthof(LocalUserAuthName) == USER_AUTH_LAST + 1,
 					 "LocalUserAuthName[] does not match the UserAuth enum; the Postgres source likely changed.");
 	return LocalUserAuthName[auth_method];
 }
+#endif
