@@ -46,25 +46,8 @@ static int  log_period_guc = 0;
 static bool log_successful_authentications_guc = false;
 
 #if PG_VERSION_NUM < 140000
-/* verbatim copy of UserAuthName (src/backend/libpq/hba.c) required by local_hba_authname */
-static const char *const LocalUserAuthName[] =
-{
-	"reject",
-	"implicit reject",			/* Not a user-visible option */
-	"trust",
-	"ident",
-	"password",
-	"md5",
-	"scram-sha-256",
-	"gss",
-	"sspi",
-	"pam",
-	"bsd",
-	"ldap",
-	"cert",
-	"radius",
-	"peer"
-};
+
+
 #endif
 
 /* Number of output arguments (columns) for various API versions */
@@ -128,9 +111,6 @@ static void fai_shmem_shutdown(int code, Datum arg);
 static void auth_monitor(Port *port, int status);
 static void log_pg_auth_mon_data(void);
 static Datum pg_auth_mon_internal(PG_FUNCTION_ARGS, pgauthmonVersion api_version);
-#if PG_VERSION_NUM < 140000
-const char * hba_authname(UserAuth auth_method);
-#endif
 
 
 /*
@@ -286,6 +266,45 @@ fai_memsize(void)
 
 }
 
+/* To log the authentication method in PG versions < 14, we have to re-implement
+ * hba_authname because the relevant commit 9afffcb833d3c5e5 was not backported.
+ *
+ * Note c1968426ba3de1fe37 refactored hba_authname.
+ */
+#if PG_VERSION_NUM < 140000
+const char *
+hba_authname(UserAuth auth_method)
+{
+	/* verbatim copy of UserAuthName (src/backend/libpq/hba.c) */
+	char *const LocalUserAuthName[] =
+	{
+		"reject",
+		"implicit reject",			/* Not a user-visible option */
+		"trust",
+		"ident",
+		"password",
+		"md5",
+		"scram-sha-256",
+		"gss",
+		"sspi",
+		"pam",
+		"bsd",
+		"ldap",
+		"cert",
+		"radius",
+		"peer"
+	};
+
+	/*
+	 * Fail if the UserAuth enum in hba.h changed.
+	 */
+	StaticAssertStmt(lengthof(LocalUserAuthName) == USER_AUTH_LAST + 1,
+					 "LocalUserAuthName[] does not match the UserAuth enum; the Postgres source likely changed.");
+	return LocalUserAuthName[auth_method];
+}
+#endif
+
+
 /*
  * Monitor the authentication attempt here.
  * If the entry for this user does not exist then create one, otherwise update
@@ -319,32 +338,32 @@ auth_monitor(Port *port, int status)
 		initStringInfo(&logmsg);
 
 		appendStringInfo(&logmsg, _("connection authorized: %s:%s user=%s database=%s"),
-							 port->remote_host, port->remote_port, port->user_name, port->database_name);
+						 port->remote_host, port->remote_port, port->user_name, port->database_name);
 #if PG_VERSION_NUM >= 120000
 		if (port->application_name != NULL)
-			appendStringInfo(&logmsg, _(" application_name=%s"),
-							 port->application_name);
+			appendStringInfo(&logmsg, _(" application_name=%s"), port->application_name);
 
 		appendStringInfo(&logmsg, _(" (%s:%d)"), HbaFileName, port->hba->linenumber);
 #endif
 
 #ifdef USE_SSL
-		if (port->ssl_in_use)
+		if (port->ssl_in_use) {
 #if PG_VERSION_NUM >= 110000
-		appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, bits=%d)"),
-							be_tls_get_version(port),
-							be_tls_get_cipher(port),
-							be_tls_get_cipher_bits(port));
+			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, bits=%d)"),
+							 be_tls_get_version(port),
+							 be_tls_get_cipher(port),
+							 be_tls_get_cipher_bits(port));
 #else
-		appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, compression=%s)"),
-							SSL_get_version(port->ssl),
-							SSL_get_cipher(port->ssl),
-							SSL_get_current_compression(port->ssl) ? _("on") : _("off"));
+			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, compression=%s)"),
+							 SSL_get_version(port->ssl),
+							 SSL_get_cipher(port->ssl),
+							 SSL_get_current_compression(port->ssl) ? _("on") : _("off"));
 #endif
+		}
 #endif
 
 #if PG_VERSION_NUM >= 140000
-			appendStringInfo(&logmsg, _(" identity=%s"), port->authn_id);
+		appendStringInfo(&logmsg, _(" identity=%s"), port->authn_id);
 #endif
 
 		appendStringInfo(&logmsg, _(" method=%s"), hba_authname(port->hba->auth_method));
@@ -352,7 +371,6 @@ auth_monitor(Port *port, int status)
  		ereport(LOG, (errmsg("%s", logmsg.data)));
 
 		pfree(logmsg.data);
-		return;
 	}
 
 	key = get_role_oid((const char *) (port->user_name), true);
@@ -605,20 +623,4 @@ pg_auth_mon_internal(PG_FUNCTION_ARGS, pgauthmonVersion api_version)
 	return (Datum) 0;
 }
 
-/* To log the authentication method in PG versions < 14, we have to re-implement
- * hba_authname because the relevant commit 9afffcb833d3c5e5 was not backported.
- *
- * Note c1968426ba3de1fe37 refactored hba_authname.
- */
-#if PG_VERSION_NUM < 140000
-const char *
-hba_authname(UserAuth auth_method)
-{
-	/*
-	 * Fail if the UserAuth enum in hba.h changed.
-	 */
-	StaticAssertStmt(lengthof(LocalUserAuthName) == USER_AUTH_LAST + 1,
-					 "LocalUserAuthName[] does not match the UserAuth enum; the Postgres source likely changed.");
-	return LocalUserAuthName[auth_method];
-}
-#endif
+
