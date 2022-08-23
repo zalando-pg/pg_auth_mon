@@ -617,5 +617,3 @@ pg_auth_mon_internal(PG_FUNCTION_ARGS, pgauthmonVersion api_version)
 
 	return (Datum) 0;
 }
-
-
