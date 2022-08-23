@@ -45,11 +45,6 @@ extern void _PG_init(void);
 static int  log_period_guc = 0;
 static bool log_successful_authentications_guc = false;
 
-#if PG_VERSION_NUM < 140000
-
-
-#endif
-
 /* Number of output arguments (columns) for various API versions */
 #define PG_AUTH_MON_COLS_V1_0  6
 #define PG_AUTH_MON_COLS_V1_1  7
