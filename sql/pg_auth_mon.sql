@@ -7,39 +7,6 @@ create role auth_to_be_renamed with login password 'postgres';
 
 create database testdb;
 
-create extension file_fdw;
-create server pglog foreign data wrapper file_fdw;
-
-CREATE FOREIGN TABLE pglog (
-  log_time timestamp(3) with time zone,
-  user_name text,
-  database_name text,
-  process_id integer,
-  connection_from text,
-  session_id text,
-  session_line_num bigint,
-  command_tag text,
-  session_start_time timestamp with time zone,
-  virtual_transaction_id text,
-  transaction_id bigint,
-  error_severity text,
-  sql_state_code text,
-  message text,
-  detail text,
-  hint text,
-  internal_query text,
-  internal_query_pos integer,
-  context text,
-  query text,
-  query_pos integer,
-  location text,
-  application_name text,
-  backend_type text,
-  leader_pid integer,
-  query_id bigint
-) SERVER pglog
-OPTIONS ( filename 'pg_log/postgresql.csv', format 'csv' );
-
 create extension pg_auth_mon version '1.0';
 
 --1.Successful Login attempt
@@ -78,7 +45,7 @@ drop role auth_renamed;
 select rolname, successful_attempts, total_hba_conflicts, other_auth_failures from pg_auth_mon where rolname like 'auth_%' order by rolname;
 
 --8. Successful logins are logged
-\! PGPASSWORD=postgres psql -X -t -A -U auth_super -d contrib_regression -c "select message from pglog where message like '%auth\_super%';"
+\! PGPASSWORD=postgres psql -X -t -A -U auth_super -d postgres -c "select message from public.postgres_log where message like '%auth\_super%';"
 
 --Cleanup
 drop role auth_nologin;
