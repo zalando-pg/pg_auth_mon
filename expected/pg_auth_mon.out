@@ -4,6 +4,37 @@ create role auth_test with login password 'wrongpassword';
 create role auth_to_be_deleted with login password 'foobar';
 create role auth_to_be_renamed with login password 'postgres';
 create database testdb;
+create extension file_fdw;
+create server pglog foreign data wrapper file_fdw;
+CREATE FOREIGN TABLE pglog (
+  log_time timestamp(3) with time zone,
+  user_name text,
+  database_name text,
+  process_id integer,
+  connection_from text,
+  session_id text,
+  session_line_num bigint,
+  command_tag text,
+  session_start_time timestamp with time zone,
+  virtual_transaction_id text,
+  transaction_id bigint,
+  error_severity text,
+  sql_state_code text,
+  message text,
+  detail text,
+  hint text,
+  internal_query text,
+  internal_query_pos integer,
+  context text,
+  query text,
+  query_pos integer,
+  location text,
+  application_name text,
+  backend_type text,
+  leader_pid integer,
+  query_id bigint
+) SERVER pglog
+OPTIONS ( filename 'pg_log/postgresql.csv', format 'csv' );
 create extension pg_auth_mon version '1.0';
 --1.Successful Login attempt
 \! PGPASSWORD=postgres psql -X -U auth_super -d testdb -c "select 1"
@@ -109,6 +140,10 @@ select rolname, successful_attempts, total_hba_conflicts, other_auth_failures fr
  auth_to_be_deleted |                   1 |                   0 |                   0
 (5 rows)
 
+--8. Successful logins are logged
+\! PGPASSWORD=postgres psql -X -t -A -U auth_super -d contrib_regression -c "select message from pglog where message like '%auth\_super%';"
+connection authorized: [local]: user=auth_super database=testdb application_name=pg_regress/pg_auth_mon (PGHBA_PLACEHOLDER:85) identity=auth_super method=md5
+connection authorized: [local]: user=auth_super database=contrib_regression application_name=pg_regress/pg_auth_mon (PGHBA_PLACEHOLDER:85) identity=auth_super method=md5
 --Cleanup
 drop role auth_nologin;
 drop role auth_test;
