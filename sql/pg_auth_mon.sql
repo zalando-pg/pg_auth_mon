@@ -44,8 +44,9 @@ alter role auth_renamed with password 'postgres';
 drop role auth_renamed;
 select rolname, successful_attempts, total_hba_conflicts, other_auth_failures from pg_auth_mon where rolname like 'auth_%' order by rolname;
 
---8. Successful logins are logged
-\! PGPASSWORD=postgres psql -X -t -A -U auth_super -d postgres -c "select message from public.postgres_log where message like '%auth\_super%';"
+--8. Successful logins are logged with and without SSL
+-- regexp removes ports and pg_hba line numbers
+\! PGPASSWORD=postgres PGSSLMODE=require psql -X -t -A -U auth_super -h 127.0.0.1 -d postgres -c "SELECT regexp_replace( message, ':\d{1,5}', ':', 'g' ) from public.postgres_log where message like '%auth\_super%';"
 
 --Cleanup
 drop role auth_nologin;

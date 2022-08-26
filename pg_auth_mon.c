@@ -337,9 +337,8 @@ auth_monitor(Port *port, int status)
 #if PG_VERSION_NUM >= 120000
 		if (port->application_name != NULL)
 			appendStringInfo(&logmsg, _(" application_name=%s"), port->application_name);
-
-		appendStringInfo(&logmsg, _(" (%s:%d)"), HbaFileName, port->hba->linenumber);
 #endif
+		appendStringInfo(&logmsg, _(" (%s:%d)"), HbaFileName, port->hba->linenumber);
 
 #ifdef USE_SSL
 		if (port->ssl_in_use) {

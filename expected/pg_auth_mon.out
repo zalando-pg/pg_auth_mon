@@ -109,10 +109,11 @@ select rolname, successful_attempts, total_hba_conflicts, other_auth_failures fr
  auth_to_be_deleted |                   1 |                   0 |                   0
 (5 rows)
 
---8. Successful logins are logged
-\! PGPASSWORD=postgres psql -X -t -A -U auth_super -d postgres -c "select message from public.postgres_log where message like '%auth\_super%';"
-connection authorized: [local]: user=auth_super database=testdb application_name=pg_regress/pg_auth_mon (PGHBA_PLACEHOLDER:85) identity=auth_super method=md5
-connection authorized: [local]: user=auth_super database=postgres application_name=pg_regress/pg_auth_mon (PGHBA_PLACEHOLDER:85) identity=auth_super method=md5
+--8. Successful logins are logged with and without SSL
+-- regexp removes ports and pg_hba line numbers
+\! PGPASSWORD=postgres PGSSLMODE=require psql -X -t -A -U auth_super -h 127.0.0.1 -d postgres -c "SELECT regexp_replace( message, ':\d{1,5}', ':', 'g' ) from public.postgres_log where message like '%auth\_super%';"
+connection authorized: [local]: user=auth_super database=testdb APPLICATION_NAME_PLACEHOLDER (PGHBA_PLACEHOLDER:) IDENTITY_PLACEHOLDER method=md5
+connection authorized: 127.0.0.1: user=auth_super database=postgres APPLICATION_NAME_PLACEHOLDER (PGHBA_PLACEHOLDER:) SSL enabled (protocol=TLSv1.3, cipher=TLS_AES_256_GCM_SHA384, SSL_PLACEHOLDER) IDENTITY_PLACEHOLDER method=md5
 --Cleanup
 drop role auth_nologin;
 drop role auth_test;
