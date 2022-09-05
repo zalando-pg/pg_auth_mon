@@ -7,7 +7,7 @@ export PGHOST=/tmp
 
 function cleanup() {
     pg_ctl -w stop -mf
-    rm -fr $PGDATA $pwfile
+    rm -fr $PGDATA $pwfile expected
 }
 
 cleanup 2> /dev/null
@@ -86,8 +86,12 @@ fi
 
 ) | psql -d postgres -X
 
-# we have to modify the expected values depending on PG version
+# to test logging of successful connection attempts, 
+# we have to form the expected/pg_auth_mon.out at runtime from the template depending on PG version
+
+mkdir expected
 EXPECTED=expected/pg_auth_mon.out
+cp template_pg_auth_mon.out $EXPECTED
 
 # the log line with a successful login info contains the full path to pg_hba.conf
 # so we need to have it in the expected output to pass the tests

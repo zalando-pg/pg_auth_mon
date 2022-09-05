@@ -39,6 +39,7 @@ Note tests run against a vanilla Postgres installation that uses `md5` authentic
 that affects expected test results. Have a look into `test.sh` for Postgres test configuraiton.
 
 Depending on one's installation, one may or may not need `sudo` in the above script.
+To test logging of successful connection attempts, we form the `expected/pg_auth_mon.out` at runtime from the template depending on a PG version under test, thus the `expected` directory is not present in git.
 
 ## How to run it:
 
