@@ -3,6 +3,7 @@ create role auth_nologin with password 'postgres';
 create role auth_test with login password 'wrongpassword';
 create role auth_to_be_deleted with login password 'foobar';
 create role auth_to_be_renamed with login password 'postgres';
+create role role_to_check_logging with superuser login password 'postgres';
 
 
 create database testdb;
@@ -44,7 +45,12 @@ alter role auth_renamed with password 'postgres';
 drop role auth_renamed;
 select rolname, successful_attempts, total_hba_conflicts, other_auth_failures from pg_auth_mon where rolname like 'auth_%' order by rolname;
 
---8. Successful logins are logged with and without SSL
+--8. Check if the amount of log entries for the log-in attempts done in the previous test cases is correct.
+-- auth_to_be_renamed and auth_renamed have the same oid, and pg_auth_mon aggregates based on oids
+-- hence 2 succesfful login attempts for auth_renamed in the previous test
+\! PGPASSWORD=postgres psql -X -U role_to_check_logging -h 127.0.0.1 -d postgres -c "select user_name, count(*) as ct from public.postgres_log where position('connection authorized' in message) > 0 and user_name like 'auth%' group by user_name order by ct desc;"
+
+--9. Successful logins are logged with and without SSL
 -- regexp removes ports and pg_hba line numbers
 \! PGPASSWORD=postgres PGSSLMODE=require psql -X -t -A -U auth_super -h 127.0.0.1 -d postgres -c "SELECT regexp_replace( message, ':\d{1,5}', ':', 'g' ) from public.postgres_log where message like '%auth\_super%';"
 
@@ -52,4 +58,5 @@ select rolname, successful_attempts, total_hba_conflicts, other_auth_failures fr
 drop role auth_nologin;
 drop role auth_test;
 drop role auth_super;
+drop role role_to_check_logging;
 drop database testdb;
