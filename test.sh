@@ -103,13 +103,13 @@ sed --in-place "s#SSL_PLACEHOLDER#$SSL#g" $EXPECTED
 
 APPLICATION_NAME=''
 if [ "$PGVER" -ge 12 ]; then
-    APPLICATION_NAME='application_name=pg_regress/pg_auth_mon'
+    APPLICATION_NAME='application_name=pg_regress/pg_auth_mon '
 fi
 sed --in-place "s#APPLICATION_NAME_PLACEHOLDER#$APPLICATION_NAME#g" $EXPECTED
 
 IDENTITY=''
 if [ "$PGVER" -ge 14 ]; then
-    IDENTITY='identity=auth_super'
+    IDENTITY='identity=auth_super '
 fi
 sed --in-place "s#IDENTITY_PLACEHOLDER#$IDENTITY#g" $EXPECTED
 
