@@ -106,6 +106,10 @@ static void fai_shmem_shutdown(int code, Datum arg);
 static void auth_monitor(Port *port, int status);
 static void log_pg_auth_mon_data(void);
 static Datum pg_auth_mon_internal(PG_FUNCTION_ARGS, pgauthmonVersion api_version);
+/* removes -Wmissing-prototypes warning */
+#if PG_VERSION_NUM < 140000
+const char * hba_authname(UserAuth auth_method);
+#endif
 
 
 /*
