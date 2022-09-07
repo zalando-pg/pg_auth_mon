@@ -43,48 +43,6 @@ pg_ctl start -w -o "--shared_preload_libraries=pg_auth_mon --unix_socket_directo
 
 # set up the postgres_log table. A simplified version of spilo/postgres-appliance/scripts/post_init.sh
 PGVER=$(psql -d postgres -XtAc "SELECT pg_catalog.current_setting('server_version_num')::int/10000")
-(
-echo "
-create extension file_fdw schema public;
-create server pglog foreign data wrapper file_fdw;
-CREATE FOREIGN TABLE public.postgres_log (
-  log_time timestamp(3) with time zone,
-  user_name text,
-  database_name text,
-  process_id integer,
-  connection_from text,
-  session_id text,
-  session_line_num bigint,
-  command_tag text,
-  session_start_time timestamp with time zone,
-  virtual_transaction_id text,
-  transaction_id bigint,
-  error_severity text,
-  sql_state_code text,
-  message text,
-  detail text,
-  hint text,
-  internal_query text,
-  internal_query_pos integer,
-  context text,
-  query text,
-  query_pos integer,
-  location text,
-  application_name text
-) SERVER pglog
-OPTIONS ( filename 'pg_log/postgresql.csv', format 'csv' );
-"
-
-if [ "$PGVER" -ge 13 ]; then
-    echo "ALTER TABLE public.postgres_log ADD COLUMN IF NOT EXISTS backend_type text;"
-fi
-
-if [ "$PGVER" -ge 14 ]; then
-    echo "ALTER TABLE public.postgres_log ADD COLUMN IF NOT EXISTS leader_pid integer;"
-    echo "ALTER TABLE public.postgres_log ADD COLUMN IF NOT EXISTS query_id bigint;"
-fi
-
-) | psql -d postgres -X
 
 # to test logging of successful connection attempts, 
 # we have to form the expected/pg_auth_mon.out at runtime from the template depending on PG version
@@ -97,24 +55,24 @@ cp template_pg_auth_mon.out $EXPECTED
 # so we need to have it in the expected output to pass the tests
 PGHBA=$(readlink -f $PGDATA/pg_hba.conf)
 # use an alternative separator for sed, namely #, because $PGHBA is itself a path with slashes
-sed --in-place "s#PGHBA_PLACEHOLDER#$PGHBA#g" $EXPECTED
+sed -i ''  "s#PGHBA_PLACEHOLDER#$PGHBA#g" $EXPECTED
 
 SSL='compression=off'
 if [ "$PGVER" -ge 11 ]; then
     SSL='bits=256'
 fi
-sed --in-place "s#SSL_PLACEHOLDER#$SSL#g" $EXPECTED
+sed -i ''  "s#SSL_PLACEHOLDER#$SSL#g" $EXPECTED
 
 APPLICATION_NAME=''
 if [ "$PGVER" -ge 12 ]; then
     APPLICATION_NAME='application_name=pg_regress/pg_auth_mon '
 fi
-sed --in-place "s#APPLICATION_NAME_PLACEHOLDER#$APPLICATION_NAME#g" $EXPECTED
+sed -i ''  "s#APPLICATION_NAME_PLACEHOLDER#$APPLICATION_NAME#g" $EXPECTED
 
 IDENTITY=''
 if [ "$PGVER" -ge 14 ]; then
     IDENTITY='identity=auth_super '
 fi
-sed --in-place "s#IDENTITY_PLACEHOLDER#$IDENTITY#g" $EXPECTED
+sed -i ''  "s#IDENTITY_PLACEHOLDER#$IDENTITY#g" $EXPECTED
 
 make USE_PGXS=1 installcheck || diff -u $EXPECTED results/pg_auth_mon.out
