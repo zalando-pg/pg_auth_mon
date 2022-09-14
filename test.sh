@@ -51,28 +51,36 @@ mkdir expected
 EXPECTED=expected/pg_auth_mon.out
 cp template_pg_auth_mon.out $EXPECTED
 
+# account for incompatibility in in-place editing between GNU and BSD sed
+kernel_name="$(uname -s)"
+case "${kernel_name}" in
+    Linux*)     sedi="sed -i";;
+    Darwin*)    sedi="sed -i ''";;
+    *)          exit 1;;
+esac
+
 # the log line with a successful login info contains the full path to pg_hba.conf
 # so we need to have it in the expected output to pass the tests
 PGHBA=$(readlink -f $PGDATA/pg_hba.conf)
 # use an alternative separator for sed, namely #, because $PGHBA is itself a path with slashes
-sed -i ''  "s#PGHBA_PLACEHOLDER#$PGHBA#g" $EXPECTED
+$sedi "s#PGHBA_PLACEHOLDER#$PGHBA#g" $EXPECTED
 
 SSL='compression=off'
 if [ "$PGVER" -ge 11 ]; then
     SSL='bits=256'
 fi
-sed -i ''  "s#SSL_PLACEHOLDER#$SSL#g" $EXPECTED
+$sedi "s#SSL_PLACEHOLDER#$SSL#g" $EXPECTED
 
 APPLICATION_NAME=''
 if [ "$PGVER" -ge 12 ]; then
     APPLICATION_NAME='application_name=pg_regress/pg_auth_mon '
 fi
-sed -i ''  "s#APPLICATION_NAME_PLACEHOLDER#$APPLICATION_NAME#g" $EXPECTED
+$sedi "s#APPLICATION_NAME_PLACEHOLDER#$APPLICATION_NAME#g" $EXPECTED
 
 IDENTITY=''
 if [ "$PGVER" -ge 14 ]; then
     IDENTITY='identity=auth_super '
 fi
-sed -i ''  "s#IDENTITY_PLACEHOLDER#$IDENTITY#g" $EXPECTED
+$sedi "s#IDENTITY_PLACEHOLDER#$IDENTITY#g" $EXPECTED
 
 make USE_PGXS=1 installcheck || diff -u $EXPECTED results/pg_auth_mon.out

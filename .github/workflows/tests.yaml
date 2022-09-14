@@ -8,12 +8,14 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
     env:
       PG: ${{ matrix.postgres-version }}
     strategy:
       fail-fast: false
       matrix:
+        os:
+        - ubuntu-latest
         postgres-version:
         - '10'
         - '11'
