@@ -26,7 +26,7 @@ The motivation behind this setting is to reduce log volume for routine connectio
 ```
 2022-08-15 12:00:37.398 CEST [636077] postgres@template1 LOG:  connection authorized: [local]: user=postgres  database=template1 application_name=psql (/etc/postgresql/14/main/pg_hba.conf:90) identity=postgres method=peer
 ```
-Default: off.
+&emsp;&emsp;Default: off.
 
 ## How to build and install:
 
