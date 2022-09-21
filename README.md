@@ -43,6 +43,8 @@ To test logging of successful connection attempts, we form the `expected/pg_auth
 
 ## How to run it:
 
+The extension is compatible with PG versions >= 10.
+
 1. Add `shared_preload_libraries = 'pg_auth_mon'` to your `postgresql.conf`
 2. Restart postgresql, for example `sudo systemctl restart postgresql@12-main.service`
 3. ```sql
@@ -61,4 +63,4 @@ The information is accessible in the `pg_auth_mon` view. Each user who attempts 
 - total number of failed login attempts because of some conflict in hba file. Unfortuantely due to [a Postgres limitation](https://github.com/RafiaSabih/pg_auth_mon/issues/10) this field is currently always empty
 - total number of authentication failures because of other issues. Keep in mind a login attempt by a role without the `LOGIN` attribute is *not* an authentication failure
 
-The view does not store more specific information like the client's IP address or port; check Postgres log for that information. 
+The view does not store more specific information like the client's IP address or port; check Postgres log for that information.

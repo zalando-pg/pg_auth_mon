@@ -346,19 +346,34 @@ auth_monitor(Port *port, int status)
 
 #ifdef USE_SSL
 		if (port->ssl_in_use) {
+
+			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s"),
 #if PG_VERSION_NUM >= 110000
-			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, bits=%d)"),
 							 be_tls_get_version(port),
-							 be_tls_get_cipher(port),
-							 be_tls_get_cipher_bits(port));
+							 be_tls_get_cipher(port));
 #else
-			appendStringInfo(&logmsg, _(" SSL enabled (protocol=%s, cipher=%s, compression=%s)"),
 							 SSL_get_version(port->ssl),
-							 SSL_get_cipher(port->ssl),
+							 SSL_get_cipher(port->ssl));
+#endif
+
+#if PG_VERSION_NUM >= 110000
+			appendStringInfo(&logmsg, _(", bits=%d"),
+							 be_tls_get_cipher_bits(port));
+#endif
+
+/* SSL compression was removed in v14 at f9264d1524baa19 */
+#if PG_VERSION_NUM < 140000
+			appendStringInfo(&logmsg, _(", compression=%s"),
+#if PG_VERSION_NUM >= 110000
+							 be_tls_get_compression(port) ? _("on") : _("off"));
+#else
 							 SSL_get_current_compression(port->ssl) ? _("on") : _("off"));
 #endif
+#endif
+			appendStringInfo(&logmsg, _(")"));
 		}
 #endif
+
 
 #if PG_VERSION_NUM >= 140000
 		appendStringInfo(&logmsg, _(" identity=%s"), port->authn_id);

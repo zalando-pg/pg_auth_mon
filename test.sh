@@ -66,10 +66,13 @@ PGHBA=$(readlink -f $PGDATA/pg_hba.conf)
 $sedi "s#PGHBA_PLACEHOLDER#$PGHBA#g" $EXPECTED
 
 SSL='compression=off'
-if [ "$PGVER" -ge 11 ]; then
+if [ "$PGVER" -ge 14 ]; then
     SSL='bits=256'
+elif [ "$PGVER" -ge 11 ]; then
+    SSL='bits=256, compression=off'
 fi
 $sedi "s#SSL_PLACEHOLDER#$SSL#g" $EXPECTED
+
 
 APPLICATION_NAME=''
 if [ "$PGVER" -ge 12 ]; then
