@@ -76,11 +76,7 @@ typedef struct auth_mon_rec
 }				auth_mon_rec;
 
 /* LWlock to manage the reading and writing the hash table. */
-#if PG_VERSION_NUM < 90400
-LWLockId	auth_mon_lock;
-#else
 LWLock	   *auth_mon_lock;
-#endif
 
 /* Original Hook */
 static ClientAuthentication_hook_type original_client_auth_hook = NULL;
@@ -283,7 +279,11 @@ hba_authname(UserAuth auth_method)
 		"ident",
 		"password",
 		"md5",
+#if PG_VERSION_NUM < 100000
+#define USER_AUTH_LAST uaPeer
+#else
 		"scram-sha-256",
+#endif
 		"gss",
 		"sspi",
 		"pam",
