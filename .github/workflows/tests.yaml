@@ -40,7 +40,7 @@ jobs:
         # forbid creation of a "main" cluster when a new postgresql-x.y server package is installed
         sudo sed -ri 's/#(create_main_cluster) .*$/\1 = false/' /etc/postgresql-common/createcluster.conf
 
-        sudo apt-get --assume-yes --quiet --no-install-suggests --no-install-recommends install postgresql-$PG postgresql-server-dev-$PG
+        sudo apt-get --assume-yes --quiet --no-install-suggests --no-install-recommends install postgresql-$PG postgresql-contrib-$PG postgresql-server-dev-$PG
 
     - name: Compile and install pg_auth_mon
       run: |
