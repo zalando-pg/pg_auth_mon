@@ -8,14 +8,15 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
     env:
       PG: ${{ matrix.postgres-version }}
     strategy:
       fail-fast: false
       matrix:
+        os:
+        - ubuntu-latest
         postgres-version:
-        - '9.6'
         - '10'
         - '11'
         - '12'
@@ -24,7 +25,7 @@ jobs:
         - '15'
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Set up packages
       run: |
         set -e

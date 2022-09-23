@@ -19,7 +19,14 @@ particular IP address etc.
 
 ## List of available GUC variables:
 
-`pg_auth_mon.log_period` = 60 # dump pg_auth_mon content to Postgres log every 60 minutes (default: 0 meaning the feature is off)
+1. `pg_auth_mon.log_period = 60` : dump `pg_auth_mon` content to Postgres log every 60 minutes. Default: 0, meaning the feature is off.
+
+2. `pg_auth_mon.log_successful_authentications = off` : log information about completely established connections.
+The motivation behind this setting is to reduce log volume for routine connection attempts by emitting one message per successful connection instead of multiple ones the standard PG setting `log_connections` produces even for non-initialized connections. So enabling this setting only makes sense if you set `log_connections` to false. It is up to you to decide if the resultant log line contains enough information to satisfy your auditing requirements. Keep in mind connections that do not complete authentication will not be logged (e.g. health checks from load balancers). Authentication failures are always logged by Postgres. Logging of disconnections is unaffected by this setting (use standard `log_disconnections` setting). Log line format varies depending on the PG version and connection method used; Example log line on vanilla PG 14: 
+```
+2022-08-15 12:00:37.398 CEST [636077] postgres@template1 LOG:  connection authorized: [local]: user=postgres  database=template1 application_name=psql (/etc/postgresql/14/main/pg_hba.conf:90) identity=postgres method=peer
+```
+&emsp;&emsp;Default: off.
 
 ## How to build and install:
 
@@ -32,14 +39,19 @@ Note tests run against a vanilla Postgres installation that uses `md5` authentic
 that affects expected test results. Have a look into `test.sh` for Postgres test configuraiton.
 
 Depending on one's installation, one may or may not need `sudo` in the above script.
+To test logging of successful connection attempts, we form the `expected/pg_auth_mon.out` at runtime from the template depending on a PG version under test, thus the `expected` directory is not present in git.
 
 ## How to run it:
+
+The extension is compatible with PG versions >= 10.
 
 1. Add `shared_preload_libraries = 'pg_auth_mon'` to your `postgresql.conf`
 2. Restart postgresql, for example `sudo systemctl restart postgresql@12-main.service`
 3. ```sql
    create extension pg_auth_mon;
    select * from pg_auth_mon;```
+
+To test against a specific PG version, do `export PATH=/path/to/postgres/bin:$PATH`
 
 ## How to use:
 
@@ -51,4 +63,4 @@ The information is accessible in the `pg_auth_mon` view. Each user who attempts 
 - total number of failed login attempts because of some conflict in hba file. Unfortuantely due to [a Postgres limitation](https://github.com/RafiaSabih/pg_auth_mon/issues/10) this field is currently always empty
 - total number of authentication failures because of other issues. Keep in mind a login attempt by a role without the `LOGIN` attribute is *not* an authentication failure
 
-The view does not store more specific information like the client's IP address or port; check Postgres log for that information. 
+The view does not store more specific information like the client's IP address or port; check Postgres log for that information.
