@@ -375,7 +375,9 @@ auth_monitor(Port *port, int status)
 #endif
 
 
-#if PG_VERSION_NUM >= 140000
+#if PG_VERSION_NUM >= 160000
+		appendStringInfo(&logmsg, _(" identity=%s"), MyClientConnectionInfo.authn_id);
+#elif PG_VERSION_NUM >= 140000
 		appendStringInfo(&logmsg, _(" identity=%s"), port->authn_id);
 #endif
 
