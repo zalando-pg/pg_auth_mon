@@ -14,14 +14,13 @@ cleanup 2> /dev/null
 
 set -e
 
-readonly pwfile=$(mktemp)
+readonly pwfile="test.txt"
 echo -n $PGPASSWORD > $pwfile
-initdb --pwfile=$pwfile --auth=md5
+initdb --pwfile=$pwfile --auth=scram-sha-256
 
 # prepare tests of pg_auth_mon.log_successful_authentications
 cat >> test_cluster/postgresql.conf << EOF
 pg_auth_mon.log_successful_authentications = 'on'
-log_connections = 'off'
 log_destination = 'csvlog'
 log_directory = 'pg_log'
 log_filename = 'postgresql'
@@ -31,7 +30,7 @@ ssl_ciphers = 'DHE-RSA-AES256-GCM-SHA384:!SSLv1:!SSLv2:!SSLv3:!TLSv1:!TLSv1.1'
 ssl_prefer_server_ciphers = 'on'
 EOF
 
-echo "hostssl    all             all             127.0.0.1/32            md5" >> $PGDATA/pg_hba.conf
+echo "hostssl    all             all             127.0.0.1/32            scram-sha-256" >> $PGDATA/pg_hba.conf
 
 openssl req -nodes -new -x509 -subj /CN=pg_auth_mon.example.org -keyout server.key -out server.crt
 chmod 600 server.key

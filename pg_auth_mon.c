@@ -76,7 +76,7 @@ typedef struct auth_mon_rec
 }				auth_mon_rec;
 
 /* LWlock to manage the reading and writing the hash table. */
-LWLock	   *auth_mon_lock;
+static LWLock	   *auth_mon_lock;
 
 /* Original Hook */
 static ClientAuthentication_hook_type original_client_auth_hook = NULL;
@@ -204,7 +204,14 @@ fai_shmem_startup(void)
 	memset(&info, 0, sizeof(info));
 	info.keysize = sizeof(Oid);
 	info.entrysize = sizeof(auth_mon_rec);
-#if PG_VERSION_NUM > 100000
+#if PG_VERSION_NUM >= 190000
+	info.hash = uint32_hash;
+
+	auth_mon_ht = ShmemInitHash("auth_mon_hash",
+								AUTH_MON_HT_SIZE,
+								&info,
+								HASH_ELEM | HASH_FUNCTION);
+#elif PG_VERSION_NUM > 100000
 	info.hash = uint32_hash;
 
 	auth_mon_ht = ShmemInitHash("auth_mon_hash",
@@ -469,7 +476,7 @@ auth_monitor(Port *port, int status)
  * searchable later.
  */
 static void
-log_pg_auth_mon_data(){
+log_pg_auth_mon_data(void){
 
 	HASH_SEQ_STATUS status;
 	auth_mon_rec *entry;
